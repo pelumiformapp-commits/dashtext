@@ -1,13 +1,23 @@
-// PASTE YOUR SUPABASE URL + KEY HERE
+// ==========================================
+// 1. PLACE YOUR REAL SUPABASE CREDENTIALS HERE
+// ==========================================
+
 const SUPABASE_URL = "https://pbomqjfpfeeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBib21xamZwZmVmbm9rbGdneW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDY4NDQsImV4cCI6MjEwMDIyMjg0NH0.sIdL5Tu5RlTsEq5lvvZEsc3sxYtDbeKcDO5zticHNp0.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBib21xamZwZmVmbm9rbGdneW5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDY0Njg0NCwiZXhwIjoyMTAwMjIyODQ0fQ.vC9wj7lBepl-G9AwUcy9SXODJDa2Gqm_FKqRrhd_QaU";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==========================================
+// 2. APP STATE VARIABLES
+// ==========================================
 let currentUserId = "";
 let currentUserName = "";
 const currentRoomId = "global-demo-room";
 let peerConnection = null, localStream = null, callChannel = null;
-let hasInit = false; // <-- LINE 5: ADD THIS
+let hasInit = false; // <-- ADDED: Stops lag
 
+// ==========================================
+// 3. DOM ELEMENTS
+// ==========================================
 const loginScreen = document.getElementById('login-screen');
 const mainChatScreen = document.getElementById('main-chat-screen');
 const loginForm = document.getElementById('login-form');
@@ -21,7 +31,9 @@ const endCallBtn = document.getElementById('end-call-btn');
 const callStatus = document.getElementById('call-status');
 const remoteAudio = document.getElementById('remote-audio');
 
-// Auto-login if name saved
+// ==========================================
+// 4. AUTO-LOGIN IF NAME SAVED
+// ==========================================
 const savedName = localStorage.getItem('dashtext_username');
 if (savedName) {
   currentUserName = savedName;
@@ -32,45 +44,65 @@ if (savedName) {
   initChat();
 }
 
+// ==========================================
+// 5. LOGIN HANDLER
+// ==========================================
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   currentUserName = nameInput.value.trim();
   if (!currentUserName) return;
 
-  // Save name so it doesn't disappear
-  localStorage.setItem('dashtext_username', currentUserName);
-
+  localStorage.setItem('dashtext_username', currentUserName); // <-- ADDED: Saves name
   currentUserId = "user_" + Date.now();
+
   loginScreen.classList.remove('active-screen');
   mainChatScreen.classList.add('active-screen');
+
   initChat();
 });
 
+// ==========================================
+// 6. CHAT FUNCTIONALITY
+// ==========================================
 function initChat() {
-  if (hasInit) return; // <-- ADD THIS: Stops double-loading
-  hasInit = true; // <-- ADD THIS
+  if (hasInit) return; // <-- ADDED: Fixes lag
+  hasInit = true; // <-- ADDED: Fixes lag
 
   loadHistory();
-  supabaseClient
-.channel(`room:${currentRoomId}`)
-.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
-      renderMsg(p.new);
-    })
-.subscribe();
+
+  try {
+    supabaseClient
+     .channel(`room:${currentRoomId}`)
+     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
+          renderMsg(p.new);
+        })
+     .subscribe();
+  } catch (err) {
+    console.error("Realtime subscription error:", err);
+  }
+
   appendNotice("You're in. Free forever. Max 30 days history.");
 }
 
 async function loadHistory() {
   const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString();
-  const { data } = await supabaseClient
-   .from('messages')
-   .select('*')
-   .eq('room_id', currentRoomId)
-   .gte('created_at', thirtyDaysAgo)
-   .order('created_at', { ascending: false })
-   .limit(50); // <-- ADD THIS: Only load 50 msgs = faster
-  messageBox.innerHTML = '';
-  data?.reverse().forEach(renderMsg);
+  try {
+    const { data, error } = await supabaseClient
+     .from('messages')
+     .select('*')
+     .eq('room_id', currentRoomId)
+     .gte('created_at', thirtyDaysAgo)
+     .order('created_at', { ascending: false })
+     .limit(50); // <-- ADDED: Faster loading
+
+    if (error) throw error;
+
+    messageBox.innerHTML = '';
+    data?.reverse().forEach(renderMsg);
+  } catch (err) {
+    console.error("Failed to load chat history:", err.message);
+    appendNotice("Database connection failed. Showing offline mode.");
+  }
 }
 
 messageForm.addEventListener('submit', async (e) => {
@@ -78,11 +110,16 @@ messageForm.addEventListener('submit', async (e) => {
   const txt = messageInput.value.trim();
   if(!txt) return;
   messageInput.value = '';
-  await supabaseClient.from('messages').insert([{
-    room_id: currentRoomId,
-    sender_id: currentUserId,
-    content: `${currentUserName}: ${txt}`
-  }]);
+
+  try {
+    await supabaseClient.from('messages').insert([{
+      room_id: currentRoomId,
+      sender_id: currentUserId,
+      content: `${currentUserName}: ${txt}`
+    }]);
+  } catch (err) {
+    console.error("Failed to send message:", err);
+  }
 });
 
 function renderMsg(msg) {
@@ -101,7 +138,10 @@ function appendNotice(text) {
   messageBox.appendChild(div);
 }
 
-const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+// ==========================================
+// 7. WEBRTC AUDIO CALL FUNCTIONALITY
+// ==========================================
+const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; // <-- FIXED
 let callDuration = 0, callTimer = null;
 
 callBtn.addEventListener('click', async () => {
@@ -127,20 +167,20 @@ callBtn.addEventListener('click', async () => {
     };
 
     callChannel = supabaseClient.channel(`call:${currentRoomId}`)
-  .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+   .on('broadcast', { event: 'offer' }, async ({ payload }) => {
         if (payload.sender === currentUserId) return;
         await peerConnection.setRemoteDescription(payload.offer);
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         callChannel.send({ type: 'broadcast', event: 'answer', payload: { answer, sender: currentUserId } });
       })
-  .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+   .on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (payload.sender!== currentUserId) await peerConnection.setRemoteDescription(payload.answer);
       })
-  .on('broadcast', { event: 'ice' }, async ({ payload }) => {
+   .on('broadcast', { event: 'ice' }, async ({ payload }) => {
         if (payload.sender!== currentUserId) await peerConnection.addIceCandidate(payload.candidate);
       })
-  .subscribe(async (s) => {
+   .subscribe(async (s) => {
         if (s === 'SUBSCRIBED') {
           const offer = await peerConnection.createOffer();
           await peerConnection.setLocalDescription(offer);
@@ -151,17 +191,22 @@ callBtn.addEventListener('click', async () => {
   } catch (err) {
     callStatus.textContent = "Mic denied. Use HTTPS.";
     console.error(err);
+    setTimeout(() => callOverlay.classList.add('hidden'), 2000);
   }
 });
-
-endCallBtn.addEventListener('click', endCall);
 
 function endCall() {
   clearInterval(callTimer);
   callDuration = 0;
   localStream?.getTracks().forEach(t => t.stop());
   peerConnection?.close();
-  callChannel?.unsubscribe();
+  if (callChannel) supabaseClient.removeChannel(callChannel);
   callOverlay.classList.add('hidden');
-  callStatus.textContent = "Call ended";
-    }
+  remoteAudio.srcObject = null;
+}
+endCallBtn.addEventListener('click', endCall);
+
+
+
+
+
