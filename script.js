@@ -27,6 +27,7 @@ if (savedName) {
   currentUserId = "user_" + Date.now();
   loginScreen.classList.remove('active-screen');
   mainChatScreen.classList.add('active-screen');
+  nameInput.value = savedName;
   initChat();
 }
 
@@ -153,4 +154,4 @@ function endCall() {
   callChannel?.unsubscribe();
   callOverlay.classList.add('hidden');
   callStatus.textContent = "Call ended";
-    }
+}
