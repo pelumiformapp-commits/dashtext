@@ -1,10 +1,9 @@
 // ==========================================
-// DASH TEXT - PHASE 1 COMPLETE SCRIPT
-// Features: Password, Burn, Anonymous, AI Reply, GIF, Voice Changer, Edit, Delete, Reactions, Themes
+// DASH TEXT - UPGRADED WITH ROOMS + NAME SAVE + READ RECEIPTS
 // ==========================================
 
 // ==========================================
-// 1. FIREBASE CONFIG - REPLACE WITH YOUR OWN
+// 1. FIREBASE CONFIG - USE YOUR OWN
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyA7QpK5B4Hn4tqK7zK7zK7zK7zK7zK7zK7z",
@@ -26,15 +25,16 @@ const ROOM_PASSWORD = "pelumi";
 // ==========================================
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
-const messagesRef = database.ref('messages');
 const usersRef = database.ref('users');
 const callsRef = database.ref('calls');
+let messagesRef = null; // Will set based on room
 
 // ==========================================
 // 4. APP STATE
 // ==========================================
 let currentUserId = "user_" + Date.now();
 let currentUserName = "";
+let currentRoom = "Global Room";
 let currentTheme = '#d9fdd3';
 let burnMode = false;
 let anonMode = false;
@@ -60,7 +60,7 @@ const remoteAudio = document.getElementById('remote-audio');
 const chatList = document.querySelector('.chat-list');
 
 // ==========================================
-// 6. ADD PASSWORD FIELD
+// 6. ADD PASSWORD + ROOM FIELDS
 // ==========================================
 const passwordInput = document.createElement('input');
 passwordInput.type = 'password';
@@ -70,36 +70,56 @@ passwordInput.required = true;
 passwordInput.style.cssText = 'width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:12px';
 nameInput.insertAdjacentElement('afterend', passwordInput);
 
+const roomInput = document.createElement('input');
+roomInput.type = 'text';
+roomInput.id = 'room-input';
+roomInput.placeholder = 'Room Code: leave empty for Global';
+roomInput.style.cssText = 'width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:12px';
+passwordInput.insertAdjacentElement('afterend', roomInput);
+
+// Add Edit Name button to header
+const editNameBtn = document.createElement('button');
+editNameBtn.innerHTML = '✏️';
+editNameBtn.onclick = changeName;
+editNameBtn.style.cssText = 'background:none;border:none;font-size:22px;cursor:pointer;padding:8px;';
+document.querySelector('.chat-header')?.appendChild(editNameBtn);
+
 // ==========================================
-// 7. AUTO-LOGIN
+// 7. AUTO-LOGIN WITH NAME SAVE
 // ==========================================
 const savedName = localStorage.getItem('dashtext_username');
 const savedPass = localStorage.getItem('dashtext_password');
+const savedRoom = localStorage.getItem('dashtext_room') || 'Global Room';
+
 if (savedName && savedPass === ROOM_PASSWORD) {
   currentUserName = savedName;
+  currentRoom = savedRoom;
   loginScreen.classList.remove('active-screen');
   mainChatScreen.classList.add('active-screen');
   nameInput.value = savedName;
+  roomInput.value = savedRoom === 'Global Room'? '' : savedRoom;
   initChat();
 }
 
 // ==========================================
-// 8. LOGIN WITH PASSWORD
+// 8. LOGIN WITH PASSWORD + ROOM
 // ==========================================
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   currentUserName = nameInput.value.trim();
-  const enteredPass = document.getElementById('password-input').value;
+  const enteredPass = passwordInput.value;
+  currentRoom = roomInput.value.trim() || 'Global Room';
   
   if (!currentUserName) return;
   if (enteredPass!== ROOM_PASSWORD) {
     alert("Wrong password.");
-    document.getElementById('password-input').value = '';
+    passwordInput.value = '';
     return;
   }
 
   localStorage.setItem('dashtext_username', currentUserName);
   localStorage.setItem('dashtext_password', enteredPass);
+  localStorage.setItem('dashtext_room', currentRoom);
 
   loginScreen.classList.remove('active-screen');
   mainChatScreen.classList.add('active-screen');
@@ -107,19 +127,52 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 // ==========================================
-// 9. INIT CHAT + ONLINE STATUS + PHASE 1 BUTTONS
+// 9. CHANGE NAME FUNCTION
+// ==========================================
+function changeName() {
+  const newName = prompt('Enter new name:', currentUserName);
+  if (newName && newName!== currentUserName) {
+    const oldName = currentUserName;
+    currentUserName = newName;
+    localStorage.setItem('dashtext_username', currentUserName);
+    
+    // Update user in Firebase
+    usersRef.child(currentUserId).update({ name: currentUserName });
+    
+    // Send system message
+    messagesRef.push({
+      sender_id: 'system',
+      sender_name: 'System',
+      content: `${oldName} changed name to ${newName}`,
+      timestamp: Date.now(),
+      system: true
+    });
+    
+    document.querySelector('.user-avatar').innerText = currentUserName.charAt(0).toUpperCase();
+  }
+}
+
+// ==========================================
+// 10. INIT CHAT + ONLINE STATUS + PHASE 1 BUTTONS
 // ==========================================
 function initChat() {
   if (hasInit) return;
   hasInit = true;
 
+  // Set messagesRef to room-specific path
+  const roomKey = currentRoom.replace(/[^a-zA-Z0-9]/g, '_');
+  messagesRef = database.ref(`rooms/${roomKey}/messages`);
+  
+  document.querySelector('.room-title').innerText = currentRoom;
+  document.querySelector('.user-avatar').innerText = currentUserName.charAt(0).toUpperCase();
+
   // Set user online
   const userStatusRef = usersRef.child(currentUserId);
-  userStatusRef.set({ name: currentUserName, online: true, lastSeen: Date.now() });
+  userStatusRef.set({ name: currentUserName, online: true, room: currentRoom, lastSeen: Date.now() });
   userStatusRef.onDisconnect().remove();
 
   // ==========================================
-  // PHASE 1 BUTTONS
+  // PHASE 1 BUTTONS - Same as before
   // ==========================================
   const burnBtn = document.getElementById('burn-btn');
   const anonBtn = document.getElementById('anon-btn');
@@ -202,7 +255,8 @@ function initChat() {
               sender_name: anonMode? 'Anonymous' : currentUserName,
               content: `<img src="${gif.images.fixed_height.url}" style="max-width:200px;border-radius:8px">`,
               timestamp: Date.now(),
-              burn: burnMode
+              burn: burnMode,
+              readBy: [currentUserId]
             });
             modal.remove();
           };
@@ -226,7 +280,6 @@ function initChat() {
     }
   });
 
-  // Tap outside to close sidebar
   document.addEventListener('click', (e) => {
     if (window.innerWidth < 768 && sidebar.style.display === 'flex') {
       if (!sidebar.contains(e.target) && e.target!== usersBtn) {
@@ -235,9 +288,7 @@ function initChat() {
     }
   });
 
-  // ==========================================
-  // THEME PICKER - Long press room title
-  // ==========================================
+  // Theme picker
   const roomTitle = document.querySelector('.room-title');
   if (roomTitle) {
     roomTitle.addEventListener('contextmenu', (e) => {
@@ -254,8 +305,17 @@ function initChat() {
   // ==========================================
   // MESSAGE LISTENERS
   // ==========================================
+  messageBox.innerHTML = '';
   messagesRef.limitToLast(50).on('child_added', (snapshot) => {
     renderMsg(snapshot.key, snapshot.val());
+    
+    // READ RECEIPTS: Mark as read if not from me
+    const msg = snapshot.val();
+    if (msg.sender_id!== currentUserId &&!msg.system &&!msg.readBy?.includes(currentUserId)) {
+      const readBy = msg.readBy || [];
+      readBy.push(currentUserId);
+      messagesRef.child(snapshot.key).update({ readBy });
+    }
   });
 
   messagesRef.on('child_changed', (snapshot) => {
@@ -271,16 +331,12 @@ function initChat() {
     if (msgDiv) msgDiv.remove();
   });
 
-  // ==========================================
-  // ONLINE USERS
-  // ==========================================
+  // Online users in THIS room only
   usersRef.on('value', (snapshot) => {
     renderOnlineUsers(snapshot.val());
   });
 
-  // ==========================================
-  // CALL LISTENERS
-  // ==========================================
+  // Call listeners
   callsRef.child(currentUserId).on('value', (snapshot) => {
     const callData = snapshot.val();
     if (callData && callData.type === 'offer' &&!peerConnection) {
@@ -290,14 +346,13 @@ function initChat() {
 }
 
 // ==========================================
-// 10. SEND MESSAGE + GAMES
+// 11. SEND MESSAGE + GAMES
 // ==========================================
 messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = messageInput.value.trim();
   if (!text) return;
 
-  // Check for games: /tictactoe @Name
   if (text.startsWith('/tictactoe ')) {
     const opponent = text.split(' ')[1]?.replace('@', '');
     if (opponent) {
@@ -307,7 +362,8 @@ messageForm.addEventListener('submit', (e) => {
         content: `🎮 ${currentUserName} challenged ${opponent} to TicTacToe!`,
         timestamp: Date.now(),
         game: 'tictactoe',
-        players: [currentUserName, opponent]
+        players: [currentUserName, opponent],
+        readBy: [currentUserId]
       });
       messageInput.value = '';
       return;
@@ -319,13 +375,14 @@ messageForm.addEventListener('submit', (e) => {
     sender_name: anonMode? 'Anonymous' : currentUserName,
     content: text,
     timestamp: Date.now(),
-    burn: burnMode
+    burn: burnMode,
+    readBy: [currentUserId] // Sender already read it
   });
   messageInput.value = '';
 });
 
 // ==========================================
-// 11. RENDER MESSAGE - FIXED DOUBLE NAME BUG
+// 12. RENDER MESSAGE - FIXED DOUBLE NAME + READ RECEIPTS
 // ==========================================
 function renderMsg(msgId, msg) {
   if (!msg ||!msg.content) return;
@@ -337,15 +394,22 @@ function renderMsg(msgId, msg) {
 
   const time = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   
+  // READ RECEIPTS: Show ✓ or ✓✓
+  let ticks = '';
+  if (msg.sender_id === currentUserId &&!msg.system) {
+    const readCount = msg.readBy?.length || 1;
+    ticks = readCount > 1? ' ✓✓' : ' ✓';
+  }
+  
   // FIX: Don't show name for your own messages
   let messageText = msg.content;
-  if (msg.sender_id!== currentUserId && msg.sender_name!== 'Anonymous') {
+  if (msg.sender_id!== currentUserId && msg.sender_name!== 'Anonymous' &&!msg.system) {
     messageText = `${msg.sender_name}: ${msg.content}`;
   }
 
   div.innerHTML = `
     <div class="msg-content">${messageText}</div>
-    <div class="msg-time">${time}${msg.edited? ' • edited' : ''}</div>
+    <div class="msg-time">${time}${msg.edited? ' • edited' : ''}${ticks}</div>
     <div class="reactions"></div>
   `;
 
@@ -360,7 +424,7 @@ function renderMsg(msgId, msg) {
     });
   }
 
-  if (msg.sender_id === currentUserId) {
+  if (msg.sender_id === currentUserId &&!msg.system) {
     let lastTap = 0;
     div.addEventListener('touchend', () => {
       const now = Date.now();
@@ -400,7 +464,7 @@ function renderMsg(msgId, msg) {
 }
 
 // ==========================================
-// 12. EDIT MESSAGE
+// 13. EDIT MESSAGE
 // ==========================================
 function editMessage(msgId, oldContent) {
   const newContent = prompt('Edit message:', oldContent);
@@ -410,7 +474,7 @@ function editMessage(msgId, oldContent) {
 }
 
 // ==========================================
-// 13. DELETE MESSAGE
+// 14. DELETE MESSAGE
 // ==========================================
 function deleteMessage(msgId, div) {
   div.classList.add('deleting');
@@ -418,7 +482,7 @@ function deleteMessage(msgId, div) {
 }
 
 // ==========================================
-// 14. REACTIONS
+// 15. REACTIONS
 // ==========================================
 function showReactionPicker(msgId, x, y) {
   const picker = document.createElement('div');
@@ -458,7 +522,7 @@ function toggleReaction(msgId, emoji) {
 }
 
 // ==========================================
-// 15. THEME PICKER
+// 16. THEME PICKER
 // ==========================================
 function showThemePicker() {
   const picker = document.createElement('div');
@@ -484,24 +548,26 @@ function showThemePicker() {
 }
 
 // ==========================================
-// 16. SHOW WHO'S ONLINE
+// 17. SHOW WHO'S ONLINE - ROOM SPECIFIC
 // ==========================================
 function renderOnlineUsers(users) {
-  const onlineCount = users? Object.keys(users).length : 0;
+  // Filter users in same room
+  const roomUsers = users? Object.entries(users).filter(([uid, user]) => user.room === currentRoom) : [];
+  const onlineCount = roomUsers.length;
+  
   document.querySelector('.status').textContent = `${onlineCount} online`;
   
   chatList.innerHTML = `
     <div class="chat-item active">
       <div class="avatar">🌐</div>
       <div class="chat-info">
-        <div class="chat-name">Global Room</div>
+        <div class="chat-name">${currentRoom}</div>
         <div class="chat-preview">${onlineCount} online</div>
       </div>
     </div>
   `;
   
-  if (!users) return;
-  Object.entries(users).forEach(([uid, user]) => {
+  roomUsers.forEach(([uid, user]) => {
     if (uid === currentUserId) return;
     const div = document.createElement('div');
     div.className = 'chat-item';
@@ -517,9 +583,23 @@ function renderOnlineUsers(users) {
 }
 
 // ==========================================
-// 17. WEBRTC VOICE CALLS + VOICE CHANGER
+// 18. WEBRTC VOICE CALLS + TURN FIX
 // ==========================================
-const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const servers = { 
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { 
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject' 
+    },
+    { 
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject' 
+    }
+  ] 
+};
 
 callBtn.addEventListener('click', async () => {
   const voice = prompt('Voice changer: robot / alien / chipmunk / none', 'none');
@@ -532,7 +612,6 @@ async function startCall(voiceType) {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     
-    // Voice changer
     if (voiceType!== 'none') {
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(localStream);
@@ -571,74 +650,60 @@ async function startCall(voiceType) {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
-    // Broadcast offer to all online users except self
     usersRef.once('value', (snapshot) => {
       const users = snapshot.val() || {};
       Object.keys(users).forEach(uid => {
-        if (uid!== currentUserId) {
+        if (uid!== currentUserId && users[uid].room === currentRoom) {
           callsRef.child(uid).set({
             type: 'offer',
-            from: currentUserId,
-            fromName: currentUserName,
             offer: offer,
-            voice: voiceType
+            from: currentUserId
           });
         }
       });
     });
 
     callOverlay.classList.remove('hidden');
-    callStatus.textContent = `Calling with ${voiceType} voice...`;
-
+    callStatus.textContent = 'Calling...';
   } catch (err) {
-    callStatus.textContent = 'Mic access denied';
-    setTimeout(() => callOverlay.classList.add('hidden'), 2000);
+    alert('Mic access denied');
   }
 }
 
 async function handleCallOffer(callData) {
-  if (!confirm(`${callData.fromName} is calling with ${callData.voice} voice. Answer?`)) {
-    callsRef.child(currentUserId).remove();
-    return;
-  }
-  
   callOverlay.classList.remove('hidden');
-  callStatus.textContent = 'Connecting...';
+  callStatus.textContent = 'Incoming call...';
   
   localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   peerConnection = new RTCPeerConnection(servers);
-  
   localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-  peerConnection.ontrack = (e) => {
-    remoteAudio.srcObject = e.streams[0];
-    callStatus.textContent = 'Connected';
+  
+  peerConnection.ontrack = (e) => remoteAudio.srcObject = e.streams[0];
+  peerConnection.onicecandidate = (e) => {
+    if (e.candidate) callsRef.child('candidates').push({
+      for: callData.from,
+      candidate: e.candidate
+    });
   };
 
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+  await peerConnection.setRemoteDescription(callData.offer);
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
 
   callsRef.child(callData.from).set({
     type: 'answer',
-    answer: answer
+    answer: answer,
+    from: currentUserId
   });
+
+  callStatus.textContent = 'Connected';
 }
 
 function endCall() {
   if (peerConnection) peerConnection.close();
   if (localStream) localStream.getTracks().forEach(t => t.stop());
-  callsRef.child(currentUserId).remove();
   callOverlay.classList.add('hidden');
+  callsRef.child(currentUserId).remove();
   peerConnection = null;
   localStream = null;
 }
-
-// Listen for answers
-callsRef.on('child_changed', async (snapshot) => {
-  const data = snapshot.val();
-  if (data.type === 'answer' && peerConnection &&!peerConnection.currentRemoteDescription) {
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-    callStatus.textContent = 'Connected';
-  }
-});
