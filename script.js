@@ -12,21 +12,26 @@ const firebaseConfig = {
 };
 
 // ==========================================
-// 2. INIT FIREBASE
+// 2. PASSWORD - CHANGE THIS
+// ==========================================
+const ROOM_PASSWORD = "08142652094.";
+
+// ==========================================
+// 3. INIT FIREBASE
 // ==========================================
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const messagesRef = database.ref('messages');
 
 // ==========================================
-// 3. APP STATE VARIABLES
+// 4. APP STATE VARIABLES
 // ==========================================
 let currentUserId = "";
 let currentUserName = "";
 let hasInit = false;
 
 // ==========================================
-// 4. DOM ELEMENTS
+// 5. DOM ELEMENTS
 // ==========================================
 const loginScreen = document.getElementById('login-screen');
 const mainChatScreen = document.getElementById('main-chat-screen');
@@ -41,10 +46,22 @@ const endCallBtn = document.getElementById('end-call-btn');
 const callStatus = document.getElementById('call-status');
 
 // ==========================================
-// 5. AUTO-LOGIN IF NAME SAVED
+// 6. ADD PASSWORD FIELD TO LOGIN
+// ==========================================
+const passwordInput = document.createElement('input');
+passwordInput.type = 'password';
+passwordInput.id = 'password-input';
+passwordInput.placeholder = 'Enter room password';
+passwordInput.required = true;
+passwordInput.style.cssText = 'width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:12px';
+nameInput.insertAdjacentElement('afterend', passwordInput);
+
+// ==========================================
+// 7. AUTO-LOGIN IF NAME SAVED + PASSWORD CACHED
 // ==========================================
 const savedName = localStorage.getItem('dashtext_username');
-if (savedName) {
+const savedPass = localStorage.getItem('dashtext_password');
+if (savedName && savedPass === ROOM_PASSWORD) {
   currentUserName = savedName;
   currentUserId = "user_" + Date.now();
   loginScreen.classList.remove('active-screen');
@@ -54,14 +71,24 @@ if (savedName) {
 }
 
 // ==========================================
-// 6. LOGIN HANDLER
+// 8. LOGIN HANDLER WITH PASSWORD CHECK
 // ==========================================
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   currentUserName = nameInput.value.trim();
+  const enteredPass = document.getElementById('password-input').value;
+  
   if (!currentUserName) return;
+  
+  // Check password
+  if (enteredPass !== ROOM_PASSWORD) {
+    alert("Wrong password. Ask Pelumi for access.");
+    document.getElementById('password-input').value = '';
+    return;
+  }
 
   localStorage.setItem('dashtext_username', currentUserName);
+  localStorage.setItem('dashtext_password', enteredPass);
   currentUserId = "user_" + Date.now();
 
   loginScreen.classList.remove('active-screen');
@@ -71,26 +98,20 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 // ==========================================
-// 7. CHAT FUNCTIONALITY - FIREBASE VERSION
+// 9. CHAT FUNCTIONALITY - FIREBASE VERSION
 // ==========================================
 function initChat() {
   if (hasInit) return;
   hasInit = true;
 
-  loadHistory();
+  messageBox.innerHTML = '';
+  appendNotice("You're in. Free forever. Firebase connected.");
   
   // Listen for new messages in real-time
   messagesRef.limitToLast(50).on('child_added', (snapshot) => {
     const msg = snapshot.val();
     renderMsg(msg);
   });
-
-  appendNotice("You're in. Free forever. Firebase connected.");
-}
-
-function loadHistory() {
-  messageBox.innerHTML = '';
-  // History loads automatically via child_added listener
 }
 
 messageForm.addEventListener('submit', (e) => {
@@ -99,20 +120,27 @@ messageForm.addEventListener('submit', (e) => {
   if(!txt) return;
   messageInput.value = '';
 
-  // Send to Firebase
   messagesRef.push({
     sender_id: currentUserId,
-    sender_name: currentUserName,
+    sender_name: currentUserName || "User",
     content: txt,
     timestamp: Date.now()
+  }).catch((err) => {
+    console.error("Failed to send:", err);
+    appendNotice("Failed to send. Check internet.");
   });
 });
 
 function renderMsg(msg) {
+  if (!msg || !msg.content) return;
+  
   const div = document.createElement('div');
   div.classList.add('msg');
   div.classList.add(msg.sender_id === currentUserId ? 'sent' : 'received');
-  div.textContent = `${msg.sender_name}: ${msg.content}`;
+  
+  const name = msg.sender_name || "User";
+  div.textContent = `${name}: ${msg.content}`;
+  
   messageBox.appendChild(div);
   messageBox.scrollTop = messageBox.scrollHeight;
 }
@@ -125,7 +153,7 @@ function appendNotice(text) {
 }
 
 // ==========================================
-// 8. CALL BUTTON - DISABLED FOR NOW
+// 10. CALL BUTTON - DISABLED FOR NOW
 // ==========================================
 callBtn.addEventListener('click', () => {
   alert("Voice calls coming soon. Chat works now.");
