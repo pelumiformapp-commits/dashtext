@@ -46,7 +46,7 @@ body {
 }
 
 .chat-interface { display: flex; width: 100%; height: 100vh; height: 100dvh; }
-.sidebar { display: none; } /* Hide sidebar on mobile */
+.sidebar { display: none; }
 
 .chat-window { 
   flex: 1; 
@@ -104,7 +104,6 @@ body {
 .msg.sent { background: #d9fdd3; align-self: flex-end; }
 .msg.received { background: white; align-self: flex-start; }
 
-/* NEW: Timestamp + delete styling */
 .msg-content { margin-bottom: 2px; }
 .msg-time { 
   font-size: 11px; 
@@ -179,7 +178,67 @@ body {
   cursor: pointer; 
 }
 
-/* MOBILE SIZE FIX - This is the key part */
+/* GIF Picker Modal */
+.gif-modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+}
+.gif-modal-content {
+  background: white;
+  width: 90%;
+  max-width: 400px;
+  height: 70vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gif-header {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 8px;
+}
+#gif-search {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 15px;
+  outline: none;
+}
+#gif-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+.gif-results {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+.gif-results img {
+  width: 100%;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.gif-results img:active {
+  transform: scale(0.95);
+}
+
+/* WHAT I ADDED TO FIX SIZE: */
 @media (max-width: 767px) {
   body { font-size: 13px; }
   .msg { max-width: 75%; font-size: 14px; }
