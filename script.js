@@ -6,6 +6,7 @@ let currentUserId = "";
 let currentUserName = "";
 const currentRoomId = "global-demo-room";
 let peerConnection = null, localStream = null, callChannel = null;
+let hasInit = false; // <-- LINE 5: ADD THIS
 
 const loginScreen = document.getElementById('login-screen');
 const mainChatScreen = document.getElementById('main-chat-screen');
@@ -46,21 +47,30 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 function initChat() {
+  if (hasInit) return; // <-- ADD THIS: Stops double-loading
+  hasInit = true; // <-- ADD THIS
+
   loadHistory();
   supabaseClient
- .channel(`room:${currentRoomId}`)
- .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
+.channel(`room:${currentRoomId}`)
+.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
       renderMsg(p.new);
     })
- .subscribe();
+.subscribe();
   appendNotice("You're in. Free forever. Max 30 days history.");
 }
 
 async function loadHistory() {
   const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString();
-  const { data } = await supabaseClient.from('messages').select('*').eq('room_id', currentRoomId).gte('created_at', thirtyDaysAgo).order('created_at');
+  const { data } = await supabaseClient
+   .from('messages')
+   .select('*')
+   .eq('room_id', currentRoomId)
+   .gte('created_at', thirtyDaysAgo)
+   .order('created_at', { ascending: false })
+   .limit(50); // <-- ADD THIS: Only load 50 msgs = faster
   messageBox.innerHTML = '';
-  data?.forEach(renderMsg);
+  data?.reverse().forEach(renderMsg);
 }
 
 messageForm.addEventListener('submit', async (e) => {
@@ -117,20 +127,20 @@ callBtn.addEventListener('click', async () => {
     };
 
     callChannel = supabaseClient.channel(`call:${currentRoomId}`)
-   .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+  .on('broadcast', { event: 'offer' }, async ({ payload }) => {
         if (payload.sender === currentUserId) return;
         await peerConnection.setRemoteDescription(payload.offer);
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         callChannel.send({ type: 'broadcast', event: 'answer', payload: { answer, sender: currentUserId } });
       })
-   .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+  .on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (payload.sender!== currentUserId) await peerConnection.setRemoteDescription(payload.answer);
       })
-   .on('broadcast', { event: 'ice' }, async ({ payload }) => {
+  .on('broadcast', { event: 'ice' }, async ({ payload }) => {
         if (payload.sender!== currentUserId) await peerConnection.addIceCandidate(payload.candidate);
       })
-   .subscribe(async (s) => {
+  .subscribe(async (s) => {
         if (s === 'SUBSCRIBED') {
           const offer = await peerConnection.createOffer();
           await peerConnection.setLocalDescription(offer);
@@ -154,4 +164,4 @@ function endCall() {
   callChannel?.unsubscribe();
   callOverlay.classList.add('hidden');
   callStatus.textContent = "Call ended";
-}
+    }
