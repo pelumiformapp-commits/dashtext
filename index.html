@@ -20,6 +20,8 @@
         <p>Free messaging & calls</p>
         <form id="login-form">
           <input type="text" id="name-input" placeholder="Enter your name" required>
+          <input type="password" id="password-input" placeholder="Room password" required>
+          <input type="text" id="room-input" placeholder="Room Code: leave empty for Global">
           <button type="submit">Start Chatting</button>
         </form>
       </div>
@@ -52,6 +54,7 @@
                 <div class="status">Online</div>
               </div>
             </div>
+            <button id="edit-name-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">✏️</button>
             <button id="users-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">👥</button>
             <button id="call-btn">📞</button>
           </div>
