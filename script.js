@@ -1,5 +1,5 @@
 // ==========================================
-// DASH TEXT - COMPLETE WITH ROOMS + NAME SAVE + READ RECEIPTS
+// DASH TEXT - COMPLETE WITH SETTINGS + COLOR + SIZE + PRIVATE ROOMS
 // ==========================================
 
 // ==========================================
@@ -27,7 +27,7 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const usersRef = database.ref('users');
 const callsRef = database.ref('calls');
-let messagesRef = null; // Will set based on room
+let messagesRef = null;
 
 // ==========================================
 // 4. APP STATE
@@ -35,7 +35,9 @@ let messagesRef = null; // Will set based on room
 let currentUserId = "user_" + Date.now();
 let currentUserName = "";
 let currentRoom = "Global Room";
-let currentTheme = '#d9fdd3';
+let currentTheme = localStorage.getItem('dashtext_theme') || '#d9fdd3';
+let currentBgColor = localStorage.getItem('dashtext_bg') || '#efeae2';
+let fontSize = localStorage.getItem('dashtext_font') || '14';
 let burnMode = false;
 let anonMode = false;
 let hasInit = false;
@@ -61,6 +63,11 @@ const callStatus = document.getElementById('call-status');
 const remoteAudio = document.getElementById('remote-audio');
 const chatList = document.querySelector('.chat-list');
 const editNameBtn = document.getElementById('edit-name-btn');
+const themeBtn = document.getElementById('theme-btn');
+const fontBtn = document.getElementById('font-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsClose = document.getElementById('settings-close');
 
 // ==========================================
 // 6. AUTO-LOGIN WITH NAME SAVE
@@ -113,11 +120,9 @@ function changeName() {
     const oldName = currentUserName;
     currentUserName = newName;
     localStorage.setItem('dashtext_username', currentUserName);
-
-    // Update user in Firebase
+    
     usersRef.child(currentUserId).update({ name: currentUserName });
-
-    // Send system message
+    
     messagesRef.push({
       sender_id: 'system',
       sender_name: 'System',
@@ -125,27 +130,155 @@ function changeName() {
       timestamp: Date.now(),
       system: true
     });
-
+    
     document.querySelector('.user-avatar').innerText = currentUserName.charAt(0).toUpperCase();
   }
 }
 if (editNameBtn) editNameBtn.addEventListener('click', changeName);
 
 // ==========================================
-// 9. INIT CHAT + ONLINE STATUS + PHASE 1 BUTTONS
+// 9. THEME PICKER - COLOR CONTROL
+// ==========================================
+function showThemePicker() {
+  const picker = document.createElement('div');
+  picker.className = 'theme-picker';
+  picker.style.display = 'block';
+  picker.style.width = '280px';
+  picker.innerHTML = '<div style="font-size:13px;margin-bottom:8px;text-align:center;font-weight:600">Message Bubble</div>';
+  
+  ['#d9fdd3', '#c7d2fe', '#fecaca', '#fef08a', '#fbcfe8', '#ddd6fe', '#111b21', '#ffffff'].forEach(color => {
+    const dot = document.createElement('span');
+    dot.className = 'theme-dot';
+    dot.style.background = color;
+    dot.style.border = color === '#ffffff'? '2px solid #ccc' : 'none';
+    dot.onclick = () => {
+      currentTheme = color;
+      localStorage.setItem('dashtext_theme', color);
+      document.querySelectorAll('.msg.sent').forEach(m => {
+        m.style.background = color;
+        m.style.color = color === '#111b21' || color === '#000000'? '#fff' : '#111b21';
+      });
+      picker.remove();
+    };
+    picker.appendChild(dot);
+  });
+  
+  const bgLabel = document.createElement('div');
+  bgLabel.style.cssText = 'font-size:13px;margin:12px 0 8px;text-align:center;font-weight:600;border-top:1px solid #eee;padding-top:8px';
+  bgLabel.innerText = 'Chat Background';
+  picker.appendChild(bgLabel);
+  
+  ['#efeae2', '#0b141a', '#1e1e1e', '#f0f2f5', '#ffe4e1', '#e0f2fe', '#1a1a1a', '#fafafa'].forEach(color => {
+    const dot = document.createElement('span');
+    dot.className = 'theme-dot';
+    dot.style.background = color;
+    dot.style.border = '2px solid #ccc';
+    dot.onclick = () => {
+      currentBgColor = color;
+      localStorage.setItem('dashtext_bg', color);
+      document.querySelector('.chat-window').style.background = color;
+      picker.remove();
+    };
+    picker.appendChild(dot);
+  });
+  
+  document.body.appendChild(picker);
+  setTimeout(() => {
+    document.addEventListener('click', () => picker.remove(), { once: true });
+  }, 100);
+}
+
+if (themeBtn) themeBtn.addEventListener('click', showThemePicker);
+
+// ==========================================
+// 10. FONT SIZE CONTROL
+// ==========================================
+function changeFontSize() {
+  const newSize = prompt('Enter font size (12-20):', fontSize);
+  if (newSize && newSize >= 12 && newSize <= 20) {
+    fontSize = newSize;
+    localStorage.setItem('dashtext_font', fontSize);
+    document.body.style.fontSize = fontSize + 'px';
+    document.querySelectorAll('.msg').forEach(m => m.style.fontSize = fontSize + 'px');
+  }
+}
+
+if (fontBtn) fontBtn.addEventListener('click', changeFontSize);
+
+// ==========================================
+// 11. SETTINGS MODAL
+// ==========================================
+if (settingsBtn) settingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'flex';
+  document.getElementById('current-room-display').innerText = currentRoom;
+});
+
+if (settingsClose) settingsClose.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+});
+
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.style.display = 'none';
+});
+
+document.getElementById('change-name-setting')?.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+  changeName();
+});
+
+document.getElementById('change-room-setting')?.addEventListener('click', () => {
+  const newRoom = prompt('Enter room code:\nLeave empty for Global Room', currentRoom === 'Global Room'? '' : currentRoom);
+  if (newRoom!== null) {
+    const room = newRoom.trim() || 'Global Room';
+    if (room!== currentRoom) {
+      localStorage.setItem('dashtext_room', room);
+      location.reload();
+    }
+    settingsModal.style.display = 'none';
+  }
+});
+
+document.getElementById('theme-setting')?.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+  showThemePicker();
+});
+
+document.getElementById('font-setting')?.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+  changeFontSize();
+});
+
+document.getElementById('clear-chat-setting')?.addEventListener('click', () => {
+  if (confirm(`Delete all messages in "${currentRoom}"?\n\nThis only affects this room.`)) {
+    messagesRef.remove();
+    settingsModal.style.display = 'none';
+  }
+});
+
+document.getElementById('logout-setting')?.addEventListener('click', () => {
+  if (confirm('Logout? Your name and room will be cleared.')) {
+    localStorage.removeItem('dashtext_username');
+    localStorage.removeItem('dashtext_password');
+    localStorage.removeItem('dashtext_room');
+    location.reload();
+  }
+});
+
+// ==========================================
+// 12. INIT CHAT
 // ==========================================
 function initChat() {
   if (hasInit) return;
   hasInit = true;
 
-  // Set messagesRef to room-specific path
   const roomKey = currentRoom.replace(/[^a-zA-Z0-9]/g, '_');
   messagesRef = database.ref(`rooms/${roomKey}/messages`);
 
   document.querySelector('.room-title').innerText = currentRoom;
   document.querySelector('.user-avatar').innerText = currentUserName.charAt(0).toUpperCase();
+  document.querySelector('.chat-window').style.background = currentBgColor;
+  document.body.style.fontSize = fontSize + 'px';
 
-  // Set user online
   const userStatusRef = usersRef.child(currentUserId);
   userStatusRef.set({ name: currentUserName, online: true, room: currentRoom, lastSeen: Date.now() });
   userStatusRef.onDisconnect().remove();
@@ -267,7 +400,7 @@ function initChat() {
     }
   });
 
-  // Theme picker
+  // Theme picker on room title
   const roomTitle = document.querySelector('.room-title');
   if (roomTitle) {
     roomTitle.addEventListener('contextmenu', (e) => {
@@ -288,7 +421,6 @@ function initChat() {
   messagesRef.limitToLast(50).on('child_added', (snapshot) => {
     renderMsg(snapshot.key, snapshot.val());
 
-    // READ RECEIPTS: Mark as read if not from me
     const msg = snapshot.val();
     if (msg.sender_id!== currentUserId &&!msg.system &&!msg.readBy?.includes(currentUserId)) {
       const readBy = msg.readBy || [];
@@ -310,12 +442,10 @@ function initChat() {
     if (msgDiv) msgDiv.remove();
   });
 
-  // Online users in THIS room only
   usersRef.on('value', (snapshot) => {
     renderOnlineUsers(snapshot.val());
   });
 
-  // Call listeners
   callsRef.child(currentUserId).on('value', (snapshot) => {
     const callData = snapshot.val();
     if (callData && callData.type === 'offer' &&!peerConnection) {
@@ -325,7 +455,7 @@ function initChat() {
 }
 
 // ==========================================
-// 10. SEND MESSAGE + GAMES
+// 13. SEND MESSAGE + GAMES
 // ==========================================
 messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -361,7 +491,7 @@ messageForm.addEventListener('submit', (e) => {
 });
 
 // ==========================================
-// 11. RENDER MESSAGE - FIXED DOUBLE NAME + READ RECEIPTS
+// 14. RENDER MESSAGE - WITH COLOR + SIZE
 // ==========================================
 function renderMsg(msgId, msg) {
   if (!msg ||!msg.content) return;
@@ -369,18 +499,23 @@ function renderMsg(msgId, msg) {
   div.classList.add('msg');
   div.classList.add(msg.sender_id === currentUserId? 'sent' : 'received');
   div.dataset.msgId = msgId;
-  if (msg.sender_id === currentUserId) div.style.background = currentTheme;
+  
+  if (msg.sender_id === currentUserId) {
+    div.style.background = currentTheme;
+    div.style.color = currentTheme === '#111b21' || currentTheme === '#000000'? '#fff' : '#111b21';
+    div.style.fontSize = fontSize + 'px';
+  } else {
+    div.style.fontSize = fontSize + 'px';
+  }
 
   const time = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-  // READ RECEIPTS: Show ✓ or ✓✓
   let ticks = '';
   if (msg.sender_id === currentUserId &&!msg.system) {
     const readCount = msg.readBy?.length || 1;
     ticks = readCount > 1? ' ✓✓' : ' ✓';
   }
 
-  // FIX: Don't show name for your own messages
   let messageText = msg.content;
   if (msg.sender_id!== currentUserId && msg.sender_name!== 'Anonymous' &&!msg.system) {
     messageText = `${msg.sender_name}: ${msg.content}`;
@@ -443,7 +578,7 @@ function renderMsg(msgId, msg) {
 }
 
 // ==========================================
-// 12. EDIT MESSAGE
+// 15. EDIT MESSAGE
 // ==========================================
 function editMessage(msgId, oldContent) {
   const newContent = prompt('Edit message:', oldContent);
@@ -453,7 +588,7 @@ function editMessage(msgId, oldContent) {
 }
 
 // ==========================================
-// 13. DELETE MESSAGE
+// 16. DELETE MESSAGE
 // ==========================================
 function deleteMessage(msgId, div) {
   div.classList.add('deleting');
@@ -461,7 +596,7 @@ function deleteMessage(msgId, div) {
 }
 
 // ==========================================
-// 14. REACTIONS
+// 17. REACTIONS
 // ==========================================
 function showReactionPicker(msgId, x, y) {
   const picker = document.createElement('div');
@@ -501,33 +636,7 @@ function toggleReaction(msgId, emoji) {
 }
 
 // ==========================================
-// 15. THEME PICKER
-// ==========================================
-function showThemePicker() {
-  const picker = document.createElement('div');
-  picker.className = 'theme-picker';
-  picker.style.display = 'block';
-
-  ['#d9fdd3', '#c7d2fe', '#fecaca', '#fef08a', '#fbcfe8', '#ddd6fe'].forEach(color => {
-    const dot = document.createElement('span');
-    dot.className = 'theme-dot';
-    dot.style.background = color;
-    dot.onclick = () => {
-      currentTheme = color;
-      document.querySelectorAll('.msg.sent').forEach(m => m.style.background = color);
-      picker.remove();
-    };
-    picker.appendChild(dot);
-  });
-
-  document.body.appendChild(picker);
-  setTimeout(() => {
-    document.addEventListener('click', () => picker.remove(), { once: true });
-  }, 100);
-}
-
-// ==========================================
-// 16. SHOW WHO'S ONLINE - ROOM SPECIFIC
+// 18. SHOW WHO'S ONLINE - ROOM SPECIFIC
 // ==========================================
 function renderOnlineUsers(users) {
   const roomUsers = users? Object.entries(users).filter(([uid, user]) => user.room === currentRoom) : [];
@@ -561,7 +670,7 @@ function renderOnlineUsers(users) {
 }
 
 // ==========================================
-// 17. WEBRTC VOICE CALLS + TURN FIX
+// 19. WEBRTC VOICE CALLS + TURN FIX
 // ==========================================
 const servers = {
   iceServers: [
@@ -685,3 +794,13 @@ function endCall() {
   peerConnection = null;
   localStream = null;
 }
+
+// ==========================================
+// 20. LOAD SAVED THEME ON STARTUP
+// ==========================================
+window.addEventListener('load', () => {
+  const savedName = localStorage.getItem('dashtext_username');
+  if (savedName) document.getElementById('name-input').value = savedName;
+  document.querySelector('.chat-window').style.background = currentBgColor;
+  document.body.style.fontSize = fontSize + 'px';
+});
