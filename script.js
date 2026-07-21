@@ -14,7 +14,7 @@ const firebaseConfig = {
 // ==========================================
 // 2. PASSWORD - CHANGE THIS
 // ==========================================
-const ROOM_PASSWORD = "dash123";
+const ROOM_PASSWORD = "pelumi";
 
 // ==========================================
 // 3. INIT FIREBASE
