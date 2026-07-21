@@ -99,9 +99,22 @@ body {
   word-wrap: break-word;
   font-size: 15px;
   line-height: 1.4;
+  position: relative;
 }
 .msg.sent { background: #d9fdd3; align-self: flex-end; }
 .msg.received { background: white; align-self: flex-start; }
+
+/* NEW: Timestamp + delete styling */
+.msg-content { margin-bottom: 2px; }
+.msg-time { 
+  font-size: 11px; 
+  color: #667781; 
+  text-align: right; 
+  opacity: 0.7;
+  margin-top: 2px;
+}
+.msg.sent .msg-time { color: #4f7a4a; }
+.msg.sent { user-select: none; } /* Better long-press on mobile */
 
 .input-area { 
   padding: 8px; 
@@ -153,7 +166,7 @@ body {
   cursor: pointer; 
 }
 
-/* Tablet/Desktop: Show sidebar */
+/* Tablet/Desktop: Show sidebar with online users */
 @media (min-width: 768px) {
   .sidebar { 
     width: 30%; 
