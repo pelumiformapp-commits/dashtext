@@ -69,6 +69,13 @@
     </div>
   </div>
   <audio id="remote-audio" autoplay playsinline></audio>
-  <script src="app.js"></script>
+  
+  <script>
+    // REPLACE THESE 2 LINES WITH YOUR REAL SUPABASE CREDENTIALS
+    const SUPABASE_URL = "https://your-project.supabase.co";
+    const SUPABASE_ANON_KEY = "your-anon-key";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
+  <script src="script.js" defer></script>
 </body>
 </html>
