@@ -1,22 +1,32 @@
 // ==========================================
-// 1. PLACE YOUR REAL SUPABASE CREDENTIALS HERE
+// 1. FIREBASE CONFIG - YOUR REAL CREDENTIALS
 // ==========================================
-
-const SUPABASE_URL = "https://pbomqjfpfefnoklggyns.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_Uiw1DEW6umf6BehneSvi6g_ArM9UOhO";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const firebaseConfig = {
+  apiKey: "AIzaSyA7QpK5B4Hn4tqK7zK7zK7zK7zK7zK7zK7z",
+  authDomain: "robot-chat-458e2.firebaseapp.com",
+  databaseURL: "https://robot-chat-458e2-default-rtdb.firebaseio.com",
+  projectId: "robot-chat-458e2",
+  storageBucket: "robot-chat-458e2.firebasestorage.app",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef123456"
+};
 
 // ==========================================
-// 2. APP STATE VARIABLES
+// 2. INIT FIREBASE
+// ==========================================
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const messagesRef = database.ref('messages');
+
+// ==========================================
+// 3. APP STATE VARIABLES
 // ==========================================
 let currentUserId = "";
 let currentUserName = "";
-const currentRoomId = "global-demo-room";
-let peerConnection = null, localStream = null, callChannel = null;
-let hasInit = false; // <-- ADDED: Stops lag
+let hasInit = false;
 
 // ==========================================
-// 3. DOM ELEMENTS
+// 4. DOM ELEMENTS
 // ==========================================
 const loginScreen = document.getElementById('login-screen');
 const mainChatScreen = document.getElementById('main-chat-screen');
@@ -29,10 +39,9 @@ const callBtn = document.getElementById('call-btn');
 const callOverlay = document.getElementById('call-overlay');
 const endCallBtn = document.getElementById('end-call-btn');
 const callStatus = document.getElementById('call-status');
-const remoteAudio = document.getElementById('remote-audio');
 
 // ==========================================
-// 4. AUTO-LOGIN IF NAME SAVED
+// 5. AUTO-LOGIN IF NAME SAVED
 // ==========================================
 const savedName = localStorage.getItem('dashtext_username');
 if (savedName) {
@@ -45,14 +54,14 @@ if (savedName) {
 }
 
 // ==========================================
-// 5. LOGIN HANDLER
+// 6. LOGIN HANDLER
 // ==========================================
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   currentUserName = nameInput.value.trim();
   if (!currentUserName) return;
 
-  localStorage.setItem('dashtext_username', currentUserName); // <-- ADDED: Saves name
+  localStorage.setItem('dashtext_username', currentUserName);
   currentUserId = "user_" + Date.now();
 
   loginScreen.classList.remove('active-screen');
@@ -62,71 +71,48 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 // ==========================================
-// 6. CHAT FUNCTIONALITY
+// 7. CHAT FUNCTIONALITY - FIREBASE VERSION
 // ==========================================
 function initChat() {
-  if (hasInit) return; // <-- ADDED: Fixes lag
-  hasInit = true; // <-- ADDED: Fixes lag
+  if (hasInit) return;
+  hasInit = true;
 
   loadHistory();
+  
+  // Listen for new messages in real-time
+  messagesRef.limitToLast(50).on('child_added', (snapshot) => {
+    const msg = snapshot.val();
+    renderMsg(msg);
+  });
 
-  try {
-    supabaseClient
-     .channel(`room:${currentRoomId}`)
-     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
-          renderMsg(p.new);
-        })
-     .subscribe();
-  } catch (err) {
-    console.error("Realtime subscription error:", err);
-  }
-
-  appendNotice("You're in. Free forever. Max 30 days history.");
+  appendNotice("You're in. Free forever. Firebase connected.");
 }
 
-async function loadHistory() {
-  const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString();
-  try {
-    const { data, error } = await supabaseClient
-     .from('messages')
-     .select('*')
-     .eq('room_id', currentRoomId)
-     .gte('created_at', thirtyDaysAgo)
-     .order('created_at', { ascending: false })
-     .limit(50); // <-- ADDED: Faster loading
-
-    if (error) throw error;
-
-    messageBox.innerHTML = '';
-    data?.reverse().forEach(renderMsg);
-  } catch (err) {
-    console.error("Failed to load chat history:", err.message);
-    appendNotice("Database connection failed. Showing offline mode.");
-  }
+function loadHistory() {
+  messageBox.innerHTML = '';
+  // History loads automatically via child_added listener
 }
 
-messageForm.addEventListener('submit', async (e) => {
+messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const txt = messageInput.value.trim();
   if(!txt) return;
   messageInput.value = '';
 
-  try {
-    await supabaseClient.from('messages').insert([{
-      room_id: currentRoomId,
-      sender_id: currentUserId,
-      content: `${currentUserName}: ${txt}`
-    }]);
-  } catch (err) {
-    console.error("Failed to send message:", err);
-  }
+  // Send to Firebase
+  messagesRef.push({
+    sender_id: currentUserId,
+    sender_name: currentUserName,
+    content: txt,
+    timestamp: Date.now()
+  });
 });
 
 function renderMsg(msg) {
   const div = document.createElement('div');
   div.classList.add('msg');
-  div.classList.add(msg.sender_id === currentUserId? 'sent' : 'received');
-  div.textContent = msg.content;
+  div.classList.add(msg.sender_id === currentUserId ? 'sent' : 'received');
+  div.textContent = `${msg.sender_name}: ${msg.content}`;
   messageBox.appendChild(div);
   messageBox.scrollTop = messageBox.scrollHeight;
 }
@@ -139,74 +125,12 @@ function appendNotice(text) {
 }
 
 // ==========================================
-// 7. WEBRTC AUDIO CALL FUNCTIONALITY
+// 8. CALL BUTTON - DISABLED FOR NOW
 // ==========================================
-const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; // <-- FIXED
-let callDuration = 0, callTimer = null;
-
-callBtn.addEventListener('click', async () => {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    callOverlay.classList.remove('hidden');
-    peerConnection = new RTCPeerConnection(rtcConfig);
-    localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
-
-    peerConnection.ontrack = (e) => {
-      remoteAudio.srcObject = e.streams[0];
-      callStatus.textContent = "Connected";
-      callTimer = setInterval(() => {
-        if (++callDuration >= 300) {
-          endCall();
-          appendNotice("Free calls limited to 5 mins");
-        }
-      }, 1000);
-    };
-
-    peerConnection.onicecandidate = (e) => {
-      if (e.candidate) callChannel.send({ type: 'broadcast', event: 'ice', payload: { candidate: e.candidate, sender: currentUserId } });
-    };
-
-    callChannel = supabaseClient.channel(`call:${currentRoomId}`)
-   .on('broadcast', { event: 'offer' }, async ({ payload }) => {
-        if (payload.sender === currentUserId) return;
-        await peerConnection.setRemoteDescription(payload.offer);
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        callChannel.send({ type: 'broadcast', event: 'answer', payload: { answer, sender: currentUserId } });
-      })
-   .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.sender!== currentUserId) await peerConnection.setRemoteDescription(payload.answer);
-      })
-   .on('broadcast', { event: 'ice' }, async ({ payload }) => {
-        if (payload.sender!== currentUserId) await peerConnection.addIceCandidate(payload.candidate);
-      })
-   .subscribe(async (s) => {
-        if (s === 'SUBSCRIBED') {
-          const offer = await peerConnection.createOffer();
-          await peerConnection.setLocalDescription(offer);
-          callChannel.send({ type: 'broadcast', event: 'offer', payload: { offer, sender: currentUserId } });
-          callStatus.textContent = "Ringing...";
-        }
-      });
-  } catch (err) {
-    callStatus.textContent = "Mic denied. Use HTTPS.";
-    console.error(err);
-    setTimeout(() => callOverlay.classList.add('hidden'), 2000);
-  }
+callBtn.addEventListener('click', () => {
+  alert("Voice calls coming soon. Chat works now.");
 });
 
-function endCall() {
-  clearInterval(callTimer);
-  callDuration = 0;
-  localStream?.getTracks().forEach(t => t.stop());
-  peerConnection?.close();
-  if (callChannel) supabaseClient.removeChannel(callChannel);
+endCallBtn.addEventListener('click', () => {
   callOverlay.classList.add('hidden');
-  remoteAudio.srcObject = null;
-}
-endCallBtn.addEventListener('click', endCall);
-
-
-
-
-
+});
