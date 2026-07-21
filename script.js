@@ -1,5 +1,5 @@
 // ==========================================
-// DASH TEXT - UPGRADED WITH ROOMS + NAME SAVE + READ RECEIPTS
+// DASH TEXT - COMPLETE WITH ROOMS + NAME SAVE + READ RECEIPTS
 // ==========================================
 
 // ==========================================
@@ -49,6 +49,8 @@ const loginScreen = document.getElementById('login-screen');
 const mainChatScreen = document.getElementById('main-chat-screen');
 const loginForm = document.getElementById('login-form');
 const nameInput = document.getElementById('name-input');
+const passwordInput = document.getElementById('password-input');
+const roomInput = document.getElementById('room-input');
 const messageBox = document.getElementById('message-box');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
@@ -58,34 +60,10 @@ const endCallBtn = document.getElementById('end-call-btn');
 const callStatus = document.getElementById('call-status');
 const remoteAudio = document.getElementById('remote-audio');
 const chatList = document.querySelector('.chat-list');
+const editNameBtn = document.getElementById('edit-name-btn');
 
 // ==========================================
-// 6. ADD PASSWORD + ROOM FIELDS
-// ==========================================
-const passwordInput = document.createElement('input');
-passwordInput.type = 'password';
-passwordInput.id = 'password-input';
-passwordInput.placeholder = 'Enter room password';
-passwordInput.required = true;
-passwordInput.style.cssText = 'width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:12px';
-nameInput.insertAdjacentElement('afterend', passwordInput);
-
-const roomInput = document.createElement('input');
-roomInput.type = 'text';
-roomInput.id = 'room-input';
-roomInput.placeholder = 'Room Code: leave empty for Global';
-roomInput.style.cssText = 'width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:12px';
-passwordInput.insertAdjacentElement('afterend', roomInput);
-
-// Add Edit Name button to header
-const editNameBtn = document.createElement('button');
-editNameBtn.innerHTML = '✏️';
-editNameBtn.onclick = changeName;
-editNameBtn.style.cssText = 'background:none;border:none;font-size:22px;cursor:pointer;padding:8px;';
-document.querySelector('.chat-header')?.appendChild(editNameBtn);
-
-// ==========================================
-// 7. AUTO-LOGIN WITH NAME SAVE
+// 6. AUTO-LOGIN WITH NAME SAVE
 // ==========================================
 const savedName = localStorage.getItem('dashtext_username');
 const savedPass = localStorage.getItem('dashtext_password');
@@ -96,20 +74,20 @@ if (savedName && savedPass === ROOM_PASSWORD) {
   currentRoom = savedRoom;
   loginScreen.classList.remove('active-screen');
   mainChatScreen.classList.add('active-screen');
-  nameInput.value = savedName;
-  roomInput.value = savedRoom === 'Global Room'? '' : savedRoom;
+  if (nameInput) nameInput.value = savedName;
+  if (roomInput) roomInput.value = savedRoom === 'Global Room'? '' : savedRoom;
   initChat();
 }
 
 // ==========================================
-// 8. LOGIN WITH PASSWORD + ROOM
+// 7. LOGIN WITH PASSWORD + ROOM
 // ==========================================
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   currentUserName = nameInput.value.trim();
   const enteredPass = passwordInput.value;
   currentRoom = roomInput.value.trim() || 'Global Room';
-  
+
   if (!currentUserName) return;
   if (enteredPass!== ROOM_PASSWORD) {
     alert("Wrong password.");
@@ -127,7 +105,7 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 // ==========================================
-// 9. CHANGE NAME FUNCTION
+// 8. CHANGE NAME FUNCTION
 // ==========================================
 function changeName() {
   const newName = prompt('Enter new name:', currentUserName);
@@ -135,10 +113,10 @@ function changeName() {
     const oldName = currentUserName;
     currentUserName = newName;
     localStorage.setItem('dashtext_username', currentUserName);
-    
+
     // Update user in Firebase
     usersRef.child(currentUserId).update({ name: currentUserName });
-    
+
     // Send system message
     messagesRef.push({
       sender_id: 'system',
@@ -147,13 +125,14 @@ function changeName() {
       timestamp: Date.now(),
       system: true
     });
-    
+
     document.querySelector('.user-avatar').innerText = currentUserName.charAt(0).toUpperCase();
   }
 }
+if (editNameBtn) editNameBtn.addEventListener('click', changeName);
 
 // ==========================================
-// 10. INIT CHAT + ONLINE STATUS + PHASE 1 BUTTONS
+// 9. INIT CHAT + ONLINE STATUS + PHASE 1 BUTTONS
 // ==========================================
 function initChat() {
   if (hasInit) return;
@@ -162,7 +141,7 @@ function initChat() {
   // Set messagesRef to room-specific path
   const roomKey = currentRoom.replace(/[^a-zA-Z0-9]/g, '_');
   messagesRef = database.ref(`rooms/${roomKey}/messages`);
-  
+
   document.querySelector('.room-title').innerText = currentRoom;
   document.querySelector('.user-avatar').innerText = currentUserName.charAt(0).toUpperCase();
 
@@ -172,7 +151,7 @@ function initChat() {
   userStatusRef.onDisconnect().remove();
 
   // ==========================================
-  // PHASE 1 BUTTONS - Same as before
+  // PHASE 1 BUTTONS
   // ==========================================
   const burnBtn = document.getElementById('burn-btn');
   const anonBtn = document.getElementById('anon-btn');
@@ -308,7 +287,7 @@ function initChat() {
   messageBox.innerHTML = '';
   messagesRef.limitToLast(50).on('child_added', (snapshot) => {
     renderMsg(snapshot.key, snapshot.val());
-    
+
     // READ RECEIPTS: Mark as read if not from me
     const msg = snapshot.val();
     if (msg.sender_id!== currentUserId &&!msg.system &&!msg.readBy?.includes(currentUserId)) {
@@ -346,7 +325,7 @@ function initChat() {
 }
 
 // ==========================================
-// 11. SEND MESSAGE + GAMES
+// 10. SEND MESSAGE + GAMES
 // ==========================================
 messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -376,13 +355,13 @@ messageForm.addEventListener('submit', (e) => {
     content: text,
     timestamp: Date.now(),
     burn: burnMode,
-    readBy: [currentUserId] // Sender already read it
+    readBy: [currentUserId]
   });
   messageInput.value = '';
 });
 
 // ==========================================
-// 12. RENDER MESSAGE - FIXED DOUBLE NAME + READ RECEIPTS
+// 11. RENDER MESSAGE - FIXED DOUBLE NAME + READ RECEIPTS
 // ==========================================
 function renderMsg(msgId, msg) {
   if (!msg ||!msg.content) return;
@@ -393,14 +372,14 @@ function renderMsg(msgId, msg) {
   if (msg.sender_id === currentUserId) div.style.background = currentTheme;
 
   const time = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  
+
   // READ RECEIPTS: Show ✓ or ✓✓
   let ticks = '';
   if (msg.sender_id === currentUserId &&!msg.system) {
     const readCount = msg.readBy?.length || 1;
     ticks = readCount > 1? ' ✓✓' : ' ✓';
   }
-  
+
   // FIX: Don't show name for your own messages
   let messageText = msg.content;
   if (msg.sender_id!== currentUserId && msg.sender_name!== 'Anonymous' &&!msg.system) {
@@ -464,7 +443,7 @@ function renderMsg(msgId, msg) {
 }
 
 // ==========================================
-// 13. EDIT MESSAGE
+// 12. EDIT MESSAGE
 // ==========================================
 function editMessage(msgId, oldContent) {
   const newContent = prompt('Edit message:', oldContent);
@@ -474,7 +453,7 @@ function editMessage(msgId, oldContent) {
 }
 
 // ==========================================
-// 14. DELETE MESSAGE
+// 13. DELETE MESSAGE
 // ==========================================
 function deleteMessage(msgId, div) {
   div.classList.add('deleting');
@@ -482,7 +461,7 @@ function deleteMessage(msgId, div) {
 }
 
 // ==========================================
-// 15. REACTIONS
+// 14. REACTIONS
 // ==========================================
 function showReactionPicker(msgId, x, y) {
   const picker = document.createElement('div');
@@ -491,7 +470,7 @@ function showReactionPicker(msgId, x, y) {
   picker.style.left = x? `${x}px` : '50%';
   picker.style.top = y? `${y}px` : '50%';
   picker.style.transform = 'translate(-50%, -50%)';
-  
+
   ['😂', '❤️', '👍', '😮', '😢', '🙏'].forEach(emoji => {
     const btn = document.createElement('span');
     btn.className = 'theme-dot';
@@ -503,7 +482,7 @@ function showReactionPicker(msgId, x, y) {
     };
     picker.appendChild(btn);
   });
-  
+
   document.body.appendChild(picker);
   setTimeout(() => {
     document.addEventListener('click', () => picker.remove(), { once: true });
@@ -522,13 +501,13 @@ function toggleReaction(msgId, emoji) {
 }
 
 // ==========================================
-// 16. THEME PICKER
+// 15. THEME PICKER
 // ==========================================
 function showThemePicker() {
   const picker = document.createElement('div');
   picker.className = 'theme-picker';
   picker.style.display = 'block';
-  
+
   ['#d9fdd3', '#c7d2fe', '#fecaca', '#fef08a', '#fbcfe8', '#ddd6fe'].forEach(color => {
     const dot = document.createElement('span');
     dot.className = 'theme-dot';
@@ -540,7 +519,7 @@ function showThemePicker() {
     };
     picker.appendChild(dot);
   });
-  
+
   document.body.appendChild(picker);
   setTimeout(() => {
     document.addEventListener('click', () => picker.remove(), { once: true });
@@ -548,15 +527,14 @@ function showThemePicker() {
 }
 
 // ==========================================
-// 17. SHOW WHO'S ONLINE - ROOM SPECIFIC
+// 16. SHOW WHO'S ONLINE - ROOM SPECIFIC
 // ==========================================
 function renderOnlineUsers(users) {
-  // Filter users in same room
   const roomUsers = users? Object.entries(users).filter(([uid, user]) => user.room === currentRoom) : [];
   const onlineCount = roomUsers.length;
-  
+
   document.querySelector('.status').textContent = `${onlineCount} online`;
-  
+
   chatList.innerHTML = `
     <div class="chat-item active">
       <div class="avatar">🌐</div>
@@ -566,7 +544,7 @@ function renderOnlineUsers(users) {
       </div>
     </div>
   `;
-  
+
   roomUsers.forEach(([uid, user]) => {
     if (uid === currentUserId) return;
     const div = document.createElement('div');
@@ -583,22 +561,22 @@ function renderOnlineUsers(users) {
 }
 
 // ==========================================
-// 18. WEBRTC VOICE CALLS + TURN FIX
+// 17. WEBRTC VOICE CALLS + TURN FIX
 // ==========================================
-const servers = { 
+const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { 
+    {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
-      credential: 'openrelayproject' 
+      credential: 'openrelayproject'
     },
-    { 
+    {
       urls: 'turn:openrelay.metered.ca:443',
       username: 'openrelayproject',
-      credential: 'openrelayproject' 
+      credential: 'openrelayproject'
     }
-  ] 
+  ]
 };
 
 callBtn.addEventListener('click', async () => {
@@ -611,12 +589,12 @@ endCallBtn.addEventListener('click', endCall);
 async function startCall(voiceType) {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    
+
     if (voiceType!== 'none') {
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(localStream);
       const destination = audioCtx.createMediaStreamDestination();
-      
+
       if (voiceType === 'robot') {
         const distortion = audioCtx.createWaveShaper();
         distortion.curve = new Float32Array(44100).map((_, i) => Math.sin(i * 0.1));
@@ -638,7 +616,7 @@ async function startCall(voiceType) {
 
     peerConnection = new RTCPeerConnection(servers);
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    
+
     peerConnection.ontrack = (e) => remoteAudio.srcObject = e.streams[0];
     peerConnection.onicecandidate = (e) => {
       if (e.candidate) callsRef.child('candidates').push({
@@ -673,11 +651,11 @@ async function startCall(voiceType) {
 async function handleCallOffer(callData) {
   callOverlay.classList.remove('hidden');
   callStatus.textContent = 'Incoming call...';
-  
+
   localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   peerConnection = new RTCPeerConnection(servers);
   localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-  
+
   peerConnection.ontrack = (e) => remoteAudio.srcObject = e.streams[0];
   peerConnection.onicecandidate = (e) => {
     if (e.candidate) callsRef.child('candidates').push({
