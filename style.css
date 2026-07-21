@@ -25,7 +25,7 @@ body {
 .logo { font-size: 48px; margin-bottom: 16px; }
 .login-card h2 { margin-bottom: 8px; color: #111b21; font-size: 20px; }
 .login-card p { color: #667781; margin-bottom: 20px; font-size: 14px; }
-#name-input { 
+#name-input, #password-input, #room-input { 
   width: 100%; 
   padding: 12px; 
   border: 1px solid #ddd; 
@@ -76,7 +76,7 @@ body {
 }
 .room-title { font-weight: 500; color: #111b21; font-size: 16px; }
 .status { font-size: 12px; color: #667781; }
-#call-btn, #users-btn { 
+#call-btn, #users-btn, #edit-name-btn, #theme-btn, #font-btn, #settings-btn { 
   background: none; 
   border: none; 
   font-size: 22px; 
@@ -119,8 +119,28 @@ body {
 .msg.editing { outline: 2px dashed #00a884; }
 .reactions { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
 .reaction { background: rgba(0,0,0,0.07); padding: 2px 6px; border-radius: 10px; font-size: 12px; cursor: pointer; }
-.theme-picker { position: fixed; bottom: 70px; right: 10px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: none; z-index: 300; }
-.theme-dot { width: 24px; height: 24px; border-radius: 50%; display: inline-block; margin: 4px; cursor: pointer; }
+.theme-picker { 
+  position: fixed; 
+  bottom: 70px; 
+  right: 10px; 
+  background: white; 
+  padding: 12px; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
+  display: none; 
+  z-index: 300;
+  max-width: 280px;
+}
+.theme-dot { 
+  width: 32px; 
+  height: 32px; 
+  border-radius: 50%; 
+  display: inline-block; 
+  margin: 4px; 
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.theme-dot:active { transform: scale(0.9); }
 .msg.deleting { opacity: 0; transform: scale(0.8); transition: all 0.2s ease; }
 
 .input-area { 
@@ -178,7 +198,7 @@ body {
   cursor: pointer; 
 }
 
-/* GIF Picker Modal */
+/* GIF Picker Modal + Settings Modal */
 .gif-modal {
   position: fixed;
   top: 0; left: 0;
@@ -204,6 +224,7 @@ body {
   border-bottom: 1px solid #ddd;
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 #gif-search {
   flex: 1;
@@ -213,7 +234,7 @@ body {
   font-size: 15px;
   outline: none;
 }
-#gif-close {
+#gif-close, #settings-close {
   background: none;
   border: none;
   font-size: 20px;
@@ -252,7 +273,7 @@ body {
   #message-input { padding: 8px 10px; font-size: 15px; }
   .input-area button { padding: 8px 12px; font-size: 13px; }
   .input-area button[type="button"] { padding: 6px!important; font-size: 18px!important; }
-  #call-btn, #users-btn { font-size: 20px; padding: 6px; }
+  #call-btn, #users-btn, #edit-name-btn, #theme-btn, #font-btn, #settings-btn { font-size: 20px; padding: 6px; }
   .sidebar { 
     position: absolute; 
     left: 0; 
