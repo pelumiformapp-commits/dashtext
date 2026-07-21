@@ -2,7 +2,6 @@
 const SUPABASE_URL = "https://pbomqjfpfeeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBib21xamZwZmVmbm9rbGdneW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDY4NDQsImV4cCI6MjEwMDIyMjg0NH0.sIdL5Tu5RlTsEq5lvvZEsc3sxYtDbeKcDO5zticHNp0.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBib21xamZwZmVmbm9rbGdneW5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDY0Njg0NCwiZXhwIjoyMTAwMjIyODQ0fQ.vC9wj7lBepl-G9AwUcy9SXODJDa2Gqm_FKqRrhd_QaU";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 let currentUserId = "";
 let currentUserName = "";
 const currentRoomId = "global-demo-room";
@@ -21,9 +20,24 @@ const endCallBtn = document.getElementById('end-call-btn');
 const callStatus = document.getElementById('call-status');
 const remoteAudio = document.getElementById('remote-audio');
 
+// Auto-login if name saved
+const savedName = localStorage.getItem('dashtext_username');
+if (savedName) {
+  currentUserName = savedName;
+  currentUserId = "user_" + Date.now();
+  loginScreen.classList.remove('active-screen');
+  mainChatScreen.classList.add('active-screen');
+  initChat();
+}
+
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   currentUserName = nameInput.value.trim();
+  if (!currentUserName) return;
+
+  // Save name so it doesn't disappear
+  localStorage.setItem('dashtext_username', currentUserName);
+
   currentUserId = "user_" + Date.now();
   loginScreen.classList.remove('active-screen');
   mainChatScreen.classList.add('active-screen');
@@ -33,11 +47,11 @@ loginForm.addEventListener('submit', (e) => {
 function initChat() {
   loadHistory();
   supabaseClient
-  .channel(`room:${currentRoomId}`)
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
+ .channel(`room:${currentRoomId}`)
+ .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${currentRoomId}` }, (p) => {
       renderMsg(p.new);
     })
-  .subscribe();
+ .subscribe();
   appendNotice("You're in. Free forever. Max 30 days history.");
 }
 
@@ -102,20 +116,20 @@ callBtn.addEventListener('click', async () => {
     };
 
     callChannel = supabaseClient.channel(`call:${currentRoomId}`)
-    .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+   .on('broadcast', { event: 'offer' }, async ({ payload }) => {
         if (payload.sender === currentUserId) return;
         await peerConnection.setRemoteDescription(payload.offer);
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         callChannel.send({ type: 'broadcast', event: 'answer', payload: { answer, sender: currentUserId } });
       })
-    .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+   .on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (payload.sender!== currentUserId) await peerConnection.setRemoteDescription(payload.answer);
       })
-    .on('broadcast', { event: 'ice' }, async ({ payload }) => {
+   .on('broadcast', { event: 'ice' }, async ({ payload }) => {
         if (payload.sender!== currentUserId) await peerConnection.addIceCandidate(payload.candidate);
       })
-    .subscribe(async (s) => {
+   .subscribe(async (s) => {
         if (s === 'SUBSCRIBED') {
           const offer = await peerConnection.createOffer();
           await peerConnection.setLocalDescription(offer);
@@ -123,19 +137,20 @@ callBtn.addEventListener('click', async () => {
           callStatus.textContent = "Ringing...";
         }
       });
-  } catch {
+  } catch (err) {
     callStatus.textContent = "Mic denied. Use HTTPS.";
-    setTimeout(() => callOverlay.classList.add('hidden'), 2000);
+    console.error(err);
   }
 });
+
+endCallBtn.addEventListener('click', endCall);
 
 function endCall() {
   clearInterval(callTimer);
   callDuration = 0;
   localStream?.getTracks().forEach(t => t.stop());
   peerConnection?.close();
-  supabaseClient.removeChannel(callChannel);
+  callChannel?.unsubscribe();
   callOverlay.classList.add('hidden');
-  remoteAudio.srcObject = null;
-}
-endCallBtn.addEventListener('click', endCall);
+  callStatus.textContent = "Call ended";
+    }
