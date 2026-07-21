@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DashText</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-container">
+    <div id="login-screen" class="screen active-screen">
+      <div class="login-card">
+        <div class="logo">💬</div>
+        <h2>Welcome to DashText</h2>
+        <p>Free messaging & calls</p>
+        <form id="login-form">
+          <input type="text" id="name-input" placeholder="Enter your name" required>
+          <button type="submit">Start Chatting</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="main-chat-screen" class="screen">
+      <div class="chat-interface">
+        <div class="sidebar">
+          <div class="sidebar-header">
+            <div class="user-avatar">👤</div>
+            <div class="brand-title">DashText</div>
+          </div>
+          <div class="chat-list">
+            <div class="chat-item active">
+              <div class="avatar">🌐</div>
+              <div class="chat-info">
+                <div class="chat-name">Global Room</div>
+                <div class="chat-preview">Everyone here</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-window">
+          <div class="chat-header">
+            <div class="chat-header-info">
+              <div class="avatar">🌐</div>
+              <div>
+                <div class="room-title">Global Room</div>
+                <div class="status">Online</div>
+              </div>
+            </div>
+            <button id="call-btn">📞</button>
+          </div>
+          <div class="message-box" id="message-box"></div>
+          <form class="input-area" id="message-form">
+            <input type="text" id="message-input" placeholder="Type a message" autocomplete="off">
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="call-overlay" class="call-overlay hidden">
+      <div class="call-card">
+        <div class="calling-avatar">📞</div>
+        <h3>Global Room</h3>
+        <div class="webrtc-tag" id="call-status">Connecting...</div>
+        <button id="end-call-btn">End Call</button>
+      </div>
+    </div>
+  </div>
+  <audio id="remote-audio" autoplay playsinline></audio>
+  <script src="app.js"></script>
+</body>
+</html>
