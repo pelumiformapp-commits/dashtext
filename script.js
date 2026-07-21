@@ -2,7 +2,7 @@
 // 1. PLACE YOUR REAL SUPABASE CREDENTIALS HERE
 // ==========================================
 
-const SUPABASE_URL = "https://pbomqjfpfefnoklggyns.co";
+const SUPABASE_URL = "https://pbomqjfpfefnoklggyns.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Uiw1DEW6umf6BehneSvi6g_ArM9UOhO";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
