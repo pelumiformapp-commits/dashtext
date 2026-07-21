@@ -76,7 +76,7 @@ body {
 }
 .room-title { font-weight: 500; color: #111b21; font-size: 16px; }
 .status { font-size: 12px; color: #667781; }
-#call-btn { 
+#call-btn, #users-btn { 
   background: none; 
   border: none; 
   font-size: 22px; 
@@ -114,7 +114,15 @@ body {
   margin-top: 2px;
 }
 .msg.sent .msg-time { color: #4f7a4a; }
-.msg.sent { user-select: none; } /* Better long-press on mobile */
+.msg.sent { user-select: none; }
+
+/* Phase 1: Edit + Reactions + Themes + Delete */
+.msg.editing { outline: 2px dashed #00a884; }
+.reactions { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.reaction { background: rgba(0,0,0,0.07); padding: 2px 6px; border-radius: 10px; font-size: 12px; cursor: pointer; }
+.theme-picker { position: fixed; bottom: 70px; right: 10px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: none; z-index: 300; }
+.theme-dot { width: 24px; height: 24px; border-radius: 50%; display: inline-block; margin: 4px; cursor: pointer; }
+.msg.deleting { opacity: 0; transform: scale(0.8); transition: all 0.2s ease; }
 
 .input-area { 
   padding: 8px; 
@@ -141,6 +149,11 @@ body {
   font-weight: 600;
   font-size: 14px;
 }
+.input-area button[type="button"] {
+  background: none;
+  padding: 8px;
+  font-size: 20px;
+}
 
 .call-overlay { 
   position: fixed; 
@@ -164,6 +177,32 @@ body {
   border-radius: 50px; 
   font-size: 16px; 
   cursor: pointer; 
+}
+
+/* MOBILE SIZE FIX - This is the key part */
+@media (max-width: 767px) {
+  body { font-size: 13px; }
+  .msg { max-width: 75%; font-size: 14px; }
+  .chat-header { padding: 6px 10px; min-height: 50px; }
+  .chat-header-info { gap: 8px; }
+  .avatar { width: 36px; height: 36px; font-size: 16px; }
+  .room-title { font-size: 15px; }
+  .status { font-size: 11px; }
+  .message-box { padding: 8px; gap: 3px; }
+  .input-area { padding: 6px; gap: 4px; }
+  #message-input { padding: 8px 10px; font-size: 15px; }
+  .input-area button { padding: 8px 12px; font-size: 13px; }
+  .input-area button[type="button"] { padding: 6px!important; font-size: 18px!important; }
+  #call-btn, #users-btn { font-size: 20px; padding: 6px; }
+  .sidebar { 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    height: 100%; 
+    z-index: 200; 
+    width: 80%; 
+    max-width: none;
+  }
 }
 
 /* Tablet/Desktop: Show sidebar with online users */
@@ -205,4 +244,5 @@ body {
   .chat-name { font-weight: 500; color: #111b21; }
   .chat-preview { font-size: 14px; color: #667781; }
   .msg { max-width: 65%; }
+  #users-btn { display: none; }
 }
