@@ -55,6 +55,9 @@
               </div>
             </div>
             <button id="edit-name-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">✏️</button>
+            <button id="theme-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">🎨</button>
+            <button id="font-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">🔤</button>
+            <button id="settings-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">⚙️</button>
             <button id="users-btn" style="background:none;border:none;font-size:20px;cursor:pointer;margin-right:8px">👥</button>
             <button id="call-btn">📞</button>
           </div>
@@ -77,6 +80,43 @@
         <h3>Global Room</h3>
         <div class="webrtc-tag" id="call-status">Connecting...</div>
         <button id="end-call-btn">End Call</button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="gif-modal" style="display:none;">
+      <div class="gif-modal-content" style="max-width:350px;height:auto;max-height:80vh;">
+        <div class="gif-header">
+          <div style="font-weight:600;font-size:18px">⚙️ Settings</div>
+          <button id="settings-close">✖️</button>
+        </div>
+        <div style="padding:16px;overflow-y:auto">
+          <div style="margin-bottom:20px">
+            <div style="font-weight:600;margin-bottom:8px;color:#111b21">Profile</div>
+            <button id="change-name-setting" style="width:100%;padding:10px;background:#f0f2f5;border:none;border-radius:8px;margin-bottom:8px;text-align:left">✏️ Change Name</button>
+            <button id="change-room-setting" style="width:100%;padding:10px;background:#f0f2f5;border:none;border-radius:8px;text-align:left">🚪 Switch Room</button>
+          </div>
+          
+          <div style="margin-bottom:20px">
+            <div style="font-weight:600;margin-bottom:8px;color:#111b21">Appearance</div>
+            <button id="theme-setting" style="width:100%;padding:10px;background:#f0f2f5;border:none;border-radius:8px;margin-bottom:8px;text-align:left">🎨 Change Colors</button>
+            <button id="font-setting" style="width:100%;padding:10px;background:#f0f2f5;border:none;border-radius:8px;text-align:left">🔤 Font Size</button>
+          </div>
+          
+          <div style="margin-bottom:20px">
+            <div style="font-weight:600;margin-bottom:8px;color:#111b21">Privacy</div>
+            <button id="clear-chat-setting" style="width:100%;padding:10px;background:#ffebee;border:none;border-radius:8px;margin-bottom:8px;text-align:left;color:#d32f2f">🗑️ Clear This Room</button>
+          </div>
+          
+          <div style="margin-bottom:12px">
+            <div style="font-weight:600;margin-bottom:8px;color:#111b21">Account</div>
+            <button id="logout-setting" style="width:100%;padding:10px;background:#ffebee;border:none;border-radius:8px;text-align:left;color:#d32f2f">🚪 Logout</button>
+          </div>
+          
+          <div style="font-size:11px;color:#667781;text-align:center;margin-top:16px">
+            Room: <span id="current-room-display">Global Room</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
